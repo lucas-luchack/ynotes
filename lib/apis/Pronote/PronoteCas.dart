@@ -26,6 +26,11 @@ callCas(String cas, String username, String password, String url) async {
         return await idf(username, password, url);
       }
       break;
+    case ("lycee connecte"):
+      {
+        return await lyccon(username, password, url);
+      }
+      break;
   }
 }
 
@@ -98,6 +103,47 @@ idf(String username, String password, String url) async {
   var cookies = await Requests.getStoredCookies(Requests.getHostname(ent_login));
   printWrapped(cookies.toString());
   return cookies;
+}
+
+lyccon(String username, String password, String url) async {
+    var headers = {
+        'connection': 'keep-alive',
+        'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:73.0) Gecko/20100101 Firefox/73.0'
+    };
+
+    final client = HttpClient();
+    // ignore: close_sinks
+    final request = await client.getUrl(Uri.parse(url));
+    request.headers.set(HttpHeaders.contentTypeHeader, "plain/text");
+    request.followRedirects = false;
+    final response = await request.close();
+    //Get location from headers
+    String redirectedUrl = response.headers.value(HttpHeaders.locationHeader);
+    String service = Uri.encodeComponent(url);
+
+    if (redirectedUrl.startsWith('http') && redirectedUrl.contains('service=')) {
+        service = redirectedUrl.substring(redirectedUrl.indexOf('=') + 1);
+    }
+
+    String ent_login = "https://mon.lyceeconnecte.fr/auth/login";
+    //remove old cookies
+    await Requests.clearStoredCookies(Requests.getHostname(ent_login));
+    String callback = Uri.encodeComponent(Uri.encodeComponent("/cas/login?service=$service"));
+    //payload to send
+    var payload = {
+        "email": username,
+        "password": password,
+        "callback": callback
+    };
+    print(payload);
+    var response2 = await Requests.post(ent_login, body: payload, persistCookies: true, bodyEncoding: RequestBodyEncoding.FormURLEncoded);
+
+    if (response2.content().contains("identifiant ou le mot de passe est incorrect.")) {
+        throw "runes";
+    }
+    var cookies = await Requests.getStoredCookies(Requests.getHostname(ent_login));
+    printWrapped(cookies.toString());
+    return cookies;
 }
 
 class Session {
